@@ -1,153 +1,60 @@
-import {
-  Button,
-  Keyboard,
-  KeyboardAvoidingView,
-  Platform,
-  SafeAreaView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  View,
-} from 'react-native';
-import { useEffect, useState } from 'react';
-
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-interface Todo {
-  id: number;
-  title: string;
-}
+import { SafeAreaView, StyleSheet, Text, View, Button } from 'react-native';
+import { useState } from 'react';
+import BookList from './components/Booklist';
+import Scan from './components/Scan';
 
 export default function App() {
-  const preTodos = [
-    { id: 1, title: 'Todo 1' },
-    { id: 2, title: 'Todo 2' },
-  ];
-  const [text, onChangeText] = useState('');
-  const [todos, setTodos] = useState<Todo[]>(preTodos);
-  const [toggleCheckBox, setToggleCheckBox] = useState(false);
+  const [books, setBooks] = useState<string[]>([]);
+  const [showScan, setShowScan] = useState(false);
+  const [modeIsAdd, setModeIsAdd] = useState(true);
 
-  useEffect(() => {
-    const getData = async () => {
-      try {
-        const jsonValue = await AsyncStorage.getItem('@todos');
-        return jsonValue != null ? JSON.parse(jsonValue) : [];
-      } catch (e) {
-        console.warn(e);
-      }
-    };
+  const toggleScan = (isAdd: boolean) => {
+    setShowScan(true);
+    setModeIsAdd(isAdd);
+  };
 
-    const loadData = async () => {
-      let loadedTodos = await getData();
-      setTodos(loadedTodos);
-    };
-
-    loadData();
-  }, []);
-
-  useEffect(() => {
-    storeData();
-  }, [todos]);
-
-  const storeData = async () => {
-    try {
-      const jsonValue = JSON.stringify(todos);
-      await AsyncStorage.setItem('@todos', jsonValue);
-    } catch (e) {
-      console.warn(e);
+  const handleScan = (type: string, isbn: string) => {
+    if (type !== 'org.gs1.EAN-13') {
+      console.log('Wrong type of code ', type);
+      setShowScan(false);
+      return;
     }
-  };
 
-  const handleAddTodo = () => {
-    if (!text) return;
-
-    let newTodo: Todo = {
-      id: Math.floor(Math.random() * 2024),
-      title: text,
-    };
-    setTodos([...todos, newTodo]);
-    onChangeText('');
-  };
-
-  const onDelete = (id: number) => {
-    setTodos(todos.filter(todo => todo.id !== id));
+    const updatedBooks = modeIsAdd
+      ? [...books, isbn]
+      : books.filter(book => book !== isbn);
+    setBooks(updatedBooks);
+    setShowScan(false);
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <SafeAreaView style={styles.inner}>
-          <View>
-            <Text style={styles.header}>Todo App with persistent Storage</Text>
-            {todos.map(todo => {
-              return (
-                <View key={todo.id} style={styles.todoContainer}>
-                  <Text>{todo.title}</Text>
-                  <TouchableOpacity
-                    style={styles.delete}
-                    onPress={() => onDelete(todo.id)}
-                  >
-                    <Text>Delete</Text>
-                  </TouchableOpacity>
-                </View>
-              );
-            })}
-          </View>
-          <View>
-            <TextInput
-              placeholder="New Todo"
-              style={styles.textInput}
-              keyboardType="default"
-              value={text}
-              onChangeText={onChangeText}
-              onSubmitEditing={handleAddTodo}
-            />
-            <Button title="Add Todo" onPress={handleAddTodo} />
-          </View>
-        </SafeAreaView>
-      </TouchableWithoutFeedback>
-    </KeyboardAvoidingView>
+    <SafeAreaView style={styles.container}>
+      <Text style={styles.headline}>Shelfie - Your personal LibraryApp</Text>
+      <BookList books={books} />
+      {showScan && <Scan onScan={handleScan} />}
+      <View style={styles.buttonContainer}>
+        <Button title="Add Book" onPress={() => toggleScan(true)} />
+        <Button title="Remove Book" onPress={() => toggleScan(false)} />
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    marginHorizontal: 6,
   },
-  inner: {
-    padding: 24, // FIXME: not working
-    flex: 1,
-    justifyContent: 'space-between',
-  },
-  header: {
-    fontSize: 22,
-    marginBottom: 48,
+  headline: {
     textAlign: 'center',
+    fontSize: 24,
+    marginBottom: 16,
   },
-  textInput: {
-    height: 40,
-    margin: 12,
-    borderWidth: 1,
-    padding: 10,
-    borderRadius: 6,
-  },
-  todoContainer: {
-    alignSelf: 'stretch',
-    marginBottom: 6,
-    paddingHorizontal: 12,
+  buttonContainer: {
+    marginTop: 'auto',
     display: 'flex',
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'space-around',
     alignItems: 'center',
-  },
-  delete: {
-    backgroundColor: '#ccc',
-    padding: 4,
-    borderRadius: 6,
   },
 });
